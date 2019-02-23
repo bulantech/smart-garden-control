@@ -2,6 +2,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include <DNSServer.h>
 
 #define LED_BUILTIN D4
 #define RELAY   D8
@@ -12,6 +13,8 @@
 #define APPSK  "thereisnospoon"
 #endif
 
+const byte DNS_PORT = 53;
+
 int sensorValue = 0;
 /* Set these to your desired credentials. */
 const char *ssid = APSSID;
@@ -19,6 +22,8 @@ const char *password = APPSK;
 
 Ticker interval1Sec;
 ESP8266WebServer server(80);
+DNSServer dnsServer;
+IPAddress apIP(192, 168, 4, 1);
 
 void setup() {
   // initialize digital pin LED_BUILTIN as an output.
@@ -32,18 +37,30 @@ void setup() {
   interval1Sec.attach(1, readSensor);
 
 //  WiFi.softAP(ssid, password);
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
   WiFi.softAP(ssid);
   IPAddress myIP = WiFi.softAPIP();
+  dnsServer.start(DNS_PORT, "*", apIP);
+  
   Serial.print("AP IP address: ");
   Serial.println(myIP);
+
+  //redirect all traffic to index.html
+  server.onNotFound([]() {
+    handleRoot();
+  });
+  
   server.on("/", handleRoot);
   server.begin();
-  Serial.println("HTTP server started");
+  
+  Serial.println("HTTP server started");  
 }
 
 // the loop function runs over and over again forever
 void loop() {
   server.handleClient();
+  dnsServer.processNextRequest();
   
 //  sensorValue = analogRead(SENSOR);
 //  Serial.println("sensorValue = " + String(sensorValue) );
