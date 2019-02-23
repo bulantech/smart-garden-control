@@ -1,5 +1,8 @@
 #define LED_BUILTIN D4
-#define RELAY D8
+#define RELAY   D8
+#define SENSOR  A0
+
+int sensorValue = 0;
 
 void setup() {
   // initialize digital pin LED_BUILTIN as an output.
@@ -13,6 +16,9 @@ void setup() {
 
 // the loop function runs over and over again forever
 void loop() {
+  sensorValue = analogRead(SENSOR);
+  Serial.println("sensorValue = " + String(sensorValue) );
+  
   digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
   digitalWrite(RELAY, HIGH);
   Serial.println("Relay close");
