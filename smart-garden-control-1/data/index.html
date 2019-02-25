@@ -12,7 +12,7 @@
 <body>
 
 <header class="w3-container w3-card w3-theme">
-  <h2>SMART GARDEN</h2>
+  <h3>SMART GARDEN</h3>
 </header>
 
 <div class="w3-container">
@@ -26,18 +26,19 @@
 	<hr>
 
 	<div class="w3-cell-row">
-	  <div class="w3-cell" style="width:40%">
-	    <div class="w3-right-align"><h3>Sensor :</h3></div>
+	  <div class="w3-cell" style="width:50%">
+	    <div class="w3-right-align"><h5>Sensor :</h5></div>
 	  </div>
 	  <div class="w3-cell w3-container">
-	    <span class="w3-tag w3-jumbo w3-light-lue"><h3>NONE</h3></span>
+	    <!-- <span class="w3-text-green w3-left-align" id="sensorValue">NONE</h3> -->
+	    <h4><input class="w3-input w3-border w3-text-green" type="number" id="sensorValue"></h4>
 	  </div>
 	</div>  
 	<br>
 	
 	<div class="w3-cell-row">
-	  <div class="w3-cell" style="width:40%">
-	    <div class="w3-right-align"><h3>Relay :</h3></div>
+	  <div class="w3-cell" style="width:50%">
+	    <div class="w3-right-align"><h5>Relay :</h5></div>
 	  </div>
 	  <div class="w3-cell w3-container">
 	    <button class="w3-button w3-blue w3-xlarge" id="btOnOff">NONE</button>
@@ -56,7 +57,7 @@
 
 	<div class="w3-cell-row">
 	  <div class="w3-cell" style="width:50%">
-	    <div class="w3-right-align"><h3>Start Value :</h3></div>
+	    <div class="w3-right-align"><h5>Start Value :</h5></div>
 	  </div>
 	  <div class="w3-cell w3-container">
 	    <input class="w3-input w3-border" type="number" id="startValue">
@@ -66,7 +67,7 @@
 	
 	<div class="w3-cell-row">
 	  <div class="w3-cell" style="width:50%">
-	    <div class="w3-right-align"><h3>Stop Value :</h3></div>
+	    <div class="w3-right-align"><h5>Stop Value :</h5></div>
 	  </div>
 	  <div class="w3-cell w3-container">
 	    <input class="w3-input w3-border" type="number" id="stopValue">
@@ -76,12 +77,13 @@
 
 	<div class="w3-cell-row">
 	  <div class="w3-cell" style="width:50%">
-	    <div class="w3-right-align"><h3>Max time :</h3></div>
+	    <div class="w3-right-align"><h5>Max time :</h5></div>
 	  </div>
 	  <div class="w3-cell w3-container">
 	    <input class="w3-input w3-border" type="number" id="maxTime">
 	  </div>
 	</div> 
+	<br>
 	<br>
 
 	<div class="w3-cell-row">
@@ -107,14 +109,43 @@
 $(function() {
 	console.log('Ready.')
 
+	$('#countDown').hide()
+	getStatus('first')
+	
+
 	$('#btSave').click(()=>{
 		console.log('btSave click')
 	}) 
 	$('#btOnOff').click(()=>{
-		console.log('btOnOff click')
+		console.log('btOnOff click ->', $('#btOnOff').text())
+		if($('#btOnOff').text() == 'ON') {
+			$('#btOnOff').text('OFF')
+		} else {
+			$('#btOnOff').text('ON')
+		}
 	}) 
 
 })
+
+function getStatus(first) {
+	$.get( "http://localhost:3000/status", function( data ) {
+		console.log(data)
+  	let value = data.split(',')
+  	$('#sensorValue').val(value[0])
+  	if(value[0] == 0) {
+  		$('#btOnOff').text('OFF')
+  	} else {
+  		$('#btOnOff').text('ON') 
+  	}
+  	if(first) {
+  		$('#startValue').val(value[2])
+  		$('#stopValue').val(value[3])
+  		$('#maxTime').val(value[4])
+  	}
+
+	});
+}
+
 </script>
 
 
