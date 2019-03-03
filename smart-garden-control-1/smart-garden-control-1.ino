@@ -17,6 +17,16 @@
 const byte DNS_PORT = 53;
 
 int sensorValue = 0;
+String startValue = "1";
+String stopValue = "2";
+String maxTime = "3";
+int relayState = 0;
+int manual = 0;
+int startValueInt = 0;
+int stopValueInt = 0;
+int maxTimeInt = 0;
+//int relayOnCount = 0;
+  
 /* Set these to your desired credentials. */
 const char *ssid = APSSID;
 const char *password = APPSK;
@@ -45,12 +55,56 @@ void setup() {
   myIP = WiFi.softAPIP();
   dnsServer.start(DNS_PORT, "*", apIP);
 
-  SPIFFS.begin();
-  
   Serial.print("AP IP address: ");
   Serial.println(myIP);
+  
+  if (!SPIFFS.begin()) {
+    Serial.println("Failed to mount file system");
+    digitalWrite(LED_BUILTIN, LOW);
+    return;
+  }
+  if (!SPIFFS.exists("/startValue.txt")) {
+    digitalWrite(LED_BUILTIN, LOW);
+    Serial.println("create file");
+    
+    File startValueFile = SPIFFS.open("/startValue.txt", "w");
+    startValueFile.println("1000");
+    startValueFile.close();
 
-  //redirect all traffic to index.html
+    File stopValueFile = SPIFFS.open("/stopValue.txt", "w");
+    stopValueFile.println("300");
+    stopValueFile.close();
+
+    File maxTimeFile = SPIFFS.open("/maxTime.txt", "w");
+    maxTimeFile.println("60");
+    maxTimeFile.close(); 
+  } 
+
+  File startValueFile = SPIFFS.open("/startValue.txt", "r");
+  startValue = startValueFile.readStringUntil('\r');
+  startValueFile.close();
+  startValueInt = startValue.toInt();
+
+  File stopValueFile = SPIFFS.open("/stopValue.txt", "r");
+  stopValue = stopValueFile.readStringUntil('\r');
+  stopValueFile.close();
+  stopValueInt = stopValue.toInt();
+
+  File maxTimeFile = SPIFFS.open("/maxTime.txt", "r");
+  maxTime = maxTimeFile.readStringUntil('\r');
+  maxTimeFile.close();
+  maxTimeInt = (maxTime.toInt())*60;
+    
+  Serial.println("Read file: "+startValue+", "+stopValueFile+", "+maxTime+", ");
+  
+//  server.on("/", handleRoot);
+  server.on("/status", handleStatus);
+  server.on("/on", handleOn);
+  server.on("/off", handleOff);
+  server.on("/save", handleSave); 
+  server.on("/disable-manual", handleDisableManual);
+  
+    //redirect all traffic to index.html
   server.onNotFound([]() {
 //    handleRoot();
     if(!handleFileRead(server.uri())){
@@ -59,7 +113,6 @@ void setup() {
     }
   });
   
-//  server.on("/", handleRoot);
   server.begin();
   
   Serial.println("HTTP server started");  
@@ -84,11 +137,38 @@ void loop() {
 }
 
 void readSensor() {
-  digitalWrite(LED_BUILTIN, LOW);
   sensorValue = analogRead(SENSOR);
-  Serial.println("sensorValue = " + String(sensorValue) );
-  delay(50);
-  digitalWrite(LED_BUILTIN, HIGH); 
+//  sensorValue = 500; //test
+  Serial.println("relayState, sensorValue, maxTimeInt, startValueInt, stopValueInt, manual = " + String(relayState) + ", " + String(sensorValue) + ", " + String(maxTimeInt) + ", " + String(startValueInt) + ", " + String(stopValueInt) + ", " + String(manual));
+  if(manual) { 
+    if(relayState) {
+      digitalWrite(LED_BUILTIN, LOW);
+    } else {
+      digitalWrite(LED_BUILTIN, HIGH);
+    }
+    return; 
+  }
+  if(relayState) {
+    digitalWrite(RELAY, HIGH); //on
+    if( (--maxTimeInt <= 0) || (sensorValue <= stopValueInt) ) {
+      maxTimeInt = 0;
+      relayState = 0;
+      digitalWrite(RELAY, LOW); //off      
+    }
+    uint8_t ledState = digitalRead(LED_BUILTIN);
+    digitalWrite( LED_BUILTIN, !ledState );
+  } 
+  else {
+    if(sensorValue >= startValueInt) {
+      relayState = 1;
+      maxTimeInt = (maxTime.toInt())*60;
+      digitalWrite(RELAY, HIGH);
+    }
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(50);
+    digitalWrite(LED_BUILTIN, HIGH); 
+  }
+   
 }
 
 void handleRoot() {
@@ -127,4 +207,68 @@ bool handleFileRead(String path){
     return true;
   }
   return false;
+}
+
+void handleStatus() {
+  String res = "";
+  res += String(sensorValue)+",";
+  res += String(relayState)+",";
+  res += String(startValue)+",";
+  res += String(stopValue)+",";
+  res += String(maxTime)+","; 
+  res += String(manual)+",";
+  server.send(200, "text/html", res);
+}
+
+void handleOn() {
+  String res = "ON";
+  manual = 1;
+  relayState = 1;
+  maxTimeInt = (maxTime.toInt())*60;
+  digitalWrite(RELAY, HIGH);
+  server.send(200, "text/html", res);
+}
+
+void handleOff() {
+  String res = "OFF";
+  manual = 1;
+  relayState = 0;
+  digitalWrite(RELAY, LOW);
+  server.send(200, "text/html", res);
+}
+
+void handleSave() {
+  String res = "Save ok: ";    
+  if (server.hasArg("plain")== false){ //Check if body received
+    server.send(200, "text/plain", "Body not received");
+    return; 
+  }
+  startValue = server.arg("startValue");
+  stopValue = server.arg("stopValue");
+  maxTime = server.arg("maxTime");
+
+  File startValueFile = SPIFFS.open("/startValue.txt", "w");
+  startValueFile.println(startValue);
+  startValueFile.close();
+  startValueInt = startValue.toInt();
+
+  File stopValueFile = SPIFFS.open("/stopValue.txt", "w");
+  stopValueFile.println(stopValue);
+  stopValueFile.close();
+  stopValueInt = stopValue.toInt();
+
+  File maxTimeFile = SPIFFS.open("/maxTime.txt", "w");
+  maxTimeFile.println(maxTime);
+  maxTimeFile.close(); 
+      
+  res += startValue+",";
+  res += stopValue+",";
+  res += maxTime+",";
+  server.send(200, "text/html", res);
+}
+
+void handleDisableManual() {
+  String res = "Disable manual mode";
+  manual = 0;
+  server.send(200, "text/html", res);
 }

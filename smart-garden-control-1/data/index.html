@@ -2,12 +2,12 @@
 <html>
 <title>Smart garden</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- <link rel="stylesheet" href="/w3.css">
+<link rel="stylesheet" href="/w3.css">
 <link rel="stylesheet" href="/w3pro.css">
-<link rel="stylesheet" href="/w3-theme-green.css"> -->
-<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<link rel="stylesheet" href="/w3-theme-green.css">
+<!-- <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
 <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3pro.css">
-<link rel="stylesheet" href="https://www.w3schools.com/lib/w3-theme-green.css">
+<link rel="stylesheet" href="https://www.w3schools.com/lib/w3-theme-green.css"> -->
 
 <body>
 
@@ -31,7 +31,7 @@
 	  </div>
 	  <div class="w3-cell w3-container">
 	    <!-- <span class="w3-text-green w3-left-align" id="sensorValue">NONE</h3> -->
-	    <h4><input class="w3-input w3-border w3-text-green" type="number" id="sensorValue"></h4>
+	    <h4><input class="w3-input w3-border w3-text-green" type="number" id="sensorValue" disabled></h4>
 	  </div>
 	</div>  
 	<br>
@@ -42,10 +42,20 @@
 	  </div>
 	  <div class="w3-cell w3-container">
 	    <button class="w3-button w3-blue w3-xlarge" id="btOnOff">NONE</button>
-	    <span class="w3-right-align" id="countDown">300</span>
 	  </div>
 	</div> 
 	<br>
+
+	<div class="w3-cell-row manual-mode" >
+	  <div class="w3-cell" style="width:50%">
+	    <div class="w3-right-align"><h5>Manual Mode :</h5></div>
+	  </div>
+	  <div class="w3-cell w3-container">
+	    <button class="w3-button w3-red w3-large" id="btDisableManual">Disable</button>
+	  </div>
+	</div> 
+	<br>
+
 	<hr>
 
 	<div class="w3-cell-row">
@@ -60,7 +70,7 @@
 	    <div class="w3-right-align"><h5>Start Value :</h5></div>
 	  </div>
 	  <div class="w3-cell w3-container">
-	    <input class="w3-input w3-border" type="number" id="startValue">
+	    <input class="w3-input w3-border" type="number" id="startValue" value="0">
 	  </div>
 	</div>  
 	<br>
@@ -70,17 +80,17 @@
 	    <div class="w3-right-align"><h5>Stop Value :</h5></div>
 	  </div>
 	  <div class="w3-cell w3-container">
-	    <input class="w3-input w3-border" type="number" id="stopValue">
+	    <input class="w3-input w3-border" type="number" id="stopValue" value="0">
 	  </div>
 	</div> 
 	<br>
 
 	<div class="w3-cell-row">
 	  <div class="w3-cell" style="width:50%">
-	    <div class="w3-right-align"><h5>Max time :</h5></div>
+	    <div class="w3-right-align"><h5>Max time/minute :</h5></div>
 	  </div>
 	  <div class="w3-cell w3-container">
-	    <input class="w3-input w3-border" type="number" id="maxTime">
+	    <input class="w3-input w3-border" type="number" id="maxTime" value="0">
 	  </div>
 	</div> 
 	<br>
@@ -102,45 +112,82 @@
   <h5>by BULANTECH</h5>
 </footer>
 
-<!-- <script src="/jquery.min.js"></script> -->
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="/jquery.min.js"></script>
+<!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> -->
 
 <script>
 $(function() {
 	console.log('Ready.')
-
-	$('#countDown').hide()
+	$('.manual-mode')	.hide()
 	getStatus('first')
 	
-
+	// http://localhost:3000
 	$('#btSave').click(()=>{
+		let startValue = $('#startValue').val()
+  	let stopValue = $('#stopValue').val()
+  	let maxTime = $('#maxTime').val()
 		console.log('btSave click')
+		$.post( "/save", { startValue: startValue, stopValue: stopValue, maxTime: maxTime } , function( data ) {
+	    console.log(data)
+	  });
 	}) 
+
 	$('#btOnOff').click(()=>{
 		console.log('btOnOff click ->', $('#btOnOff').text())
-		if($('#btOnOff').text() == 'ON') {
-			$('#btOnOff').text('OFF')
-		} else {
-			$('#btOnOff').text('ON')
+		$('.manual-mode').show()
+		if($('#btOnOff').text() == 'ON') {			
+			$.get( "/off", function( data ) {
+				console.log(data)
+				$('#btOnOff').text('OFF')
+			});
+		} else {			
+			$.get( "/on", function( data ) {
+				console.log(data)
+				$('#btOnOff').text('ON')
+			});
 		}
 	}) 
+
+	$('#btDisableManual').click(()=>{
+		console.log('btDisableManual click ->')	
+		$.get( "/disable-manual", function( data ) {
+			$('.manual-mode').hide()
+			console.log(data)
+		});
+	}) 
+
+	$("input").focus(function(){    
+    $(this).select();
+	});
+
+	setInterval(function(){ getStatus(null) }, 3000);
 
 })
 
 function getStatus(first) {
-	$.get( "http://localhost:3000/status", function( data ) {
+	$.get( "/status", function( data ) {
 		console.log(data)
   	let value = data.split(',')
   	$('#sensorValue').val(value[0])
-  	if(value[0] == 0) {
+  	if(value[1] == 0) {
   		$('#btOnOff').text('OFF')
   	} else {
   		$('#btOnOff').text('ON') 
   	}
   	if(first) {
-  		$('#startValue').val(value[2])
-  		$('#stopValue').val(value[3])
-  		$('#maxTime').val(value[4])
+  		let startValue = value[2]
+  		let stopValue = value[3]
+  		let maxTime = value[4]
+  		console.log('first ->',startValue ,stopValue ,maxTime)
+  		$('#startValue').val(startValue)
+  		$('#stopValue').val(stopValue)
+  		$('#maxTime').val(maxTime)
+  	}
+  	let manual = value[5]
+  	if(manual == 1) {
+  		$('.manual-mode')	.show()
+  	} else {
+  		$('.manual-mode')	.hide()
   	}
 
 	});
